@@ -80,7 +80,7 @@ void ImageStitcher::calibrate(Mat img_1, Mat img_2){
   // Extract location of good matches
   std::vector<Point2f> points1, points2;
   
-  if (good_matches.size() < 30){
+  if (good_matches.size() < 40){
     cout << "Not Enough Matches" << endl;
     return;
   }
