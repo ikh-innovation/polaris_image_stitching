@@ -56,7 +56,8 @@ ImageStitcher::ImageStitcher(string left, string right, int buffersize, bool deb
 }
 
 void ImageStitcher::calibrate(Mat img_1, Mat img_2){
-  Ptr<Feature2D> detector = ORB::create();
+  Ptr<Feature2D> detector = ORB::create();     //   Ptr<AKAZE> detector = AKAZE::create();    ||    Ptr<Feature2D> detector = ORB::create();
+
   std::vector<KeyPoint> keypoints_1, keypoints_2;
   Mat descriptors_1, descriptors_2;
   
