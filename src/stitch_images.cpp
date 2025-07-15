@@ -20,7 +20,7 @@ int main(int argc, char** argv){
       ROS_ERROR("Failed to get 'right' stream");
       return 1;
   }
-  
+  ROS_INFO("Streaming -> /stitched_images/output\n");
   ImageStitcher ic(left, right, 10, false);
   ros::spin();
   return 0;
