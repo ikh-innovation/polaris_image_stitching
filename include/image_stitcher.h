@@ -56,15 +56,17 @@ ImageStitcher::ImageStitcher(string left, string right, int buffersize, bool deb
 }
 
 void ImageStitcher::calibrate(Mat img_1, Mat img_2){
-  Ptr<Feature2D> detector = ORB::create();     //   Ptr<AKAZE> detector = AKAZE::create();    ||    Ptr<Feature2D> detector = ORB::create();
-
+  Ptr<AKAZE> detector = AKAZE::create();    
+  //   Ptr<AKAZE> detector = AKAZE::create();    ||    Ptr<Feature2D> detector = ORB::create();
+  // ORB needs more matches than AKAZE for worse image quality
+  // while AKAZE needs more ratio threshold than ORB
   std::vector<KeyPoint> keypoints_1, keypoints_2;
   Mat descriptors_1, descriptors_2;
   
   detector->detectAndCompute(img_1, Mat(), keypoints_1, descriptors_1);
   detector->detectAndCompute(img_2, Mat(), keypoints_2, descriptors_2);
   
-  // Matching descriptor vectors using FLANN matcher
+  // Matching descriptor vectors using BFMatcher
   BFMatcher matcher(NORM_HAMMING); 
   std::vector<std::vector<DMatch>> knn_matches;
   matcher.knnMatch(descriptors_1, descriptors_2, knn_matches, 2);
@@ -80,7 +82,7 @@ void ImageStitcher::calibrate(Mat img_1, Mat img_2){
   // Extract location of good matches
   std::vector<Point2f> points1, points2;
   
-  if (good_matches.size() < 40){
+  if (good_matches.size() < 25){
     cout << "Not Enough Matches" << endl;
     return;
   }
@@ -119,8 +121,28 @@ void ImageStitcher::callback(const sensor_msgs::ImageConstPtr& left_msg, const s
        waitKey(3);
     }
     
-    right_ptr->image = padded_right;
-    image_pub_.publish(right_ptr->toImageMsg());
+    // Crop 50px from the left side (avoid going out of bounds)
+    int crop_offset = 110;
+    int new_width = padded_right.cols - crop_offset;
+    if (new_width > 0) {
+      cv::Rect roi(crop_offset, 0, new_width, padded_right.rows);
+      Mat cropped = padded_right(roi);
+
+      // Optional GUI display
+      if (show_image) {
+        imshow(OPENCV_WINDOW, cropped);
+        waitKey(3);
+      }
+
+      // Publish
+      cv_bridge::CvImage out_msg;
+      out_msg.header = left_ptr->header;
+      out_msg.encoding = sensor_msgs::image_encodings::BGR8;
+      out_msg.image = cropped;
+      image_pub_.publish(out_msg.toImageMsg());
+    } else {
+      ROS_WARN("Invalid crop size, image too small.");
+    }
   } catch (cv_bridge::Exception& e){
     ROS_ERROR("cv_bridge exception: %s", e.what());
     return;

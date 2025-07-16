@@ -4,7 +4,7 @@ ROS Node for Realtime Image Stitching for imags obtained from two different unsy
 ## Usage
 ### Running the node
 ```
-rosrun stitch_images stitch_images _left:=/camera_left/image_raw _right:=/camera_right/image_raw _compressed_image:=compressed
+rosrun stitch_images stitch_images _left:=/camera_left/image_raw _right:=/camera_right/image_raw _image_transport_:=compressed
 ```
 ### Running rqt to view stitched image on topic /stitched_images/output
 
