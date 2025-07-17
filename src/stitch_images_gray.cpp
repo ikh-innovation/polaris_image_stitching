@@ -1,8 +1,8 @@
 #include <ros/ros.h>
-#include "image_stitcher.h"
+#include "image_stitcher_gray.h"
 
 int main(int argc, char** argv){
-  ros::init(argc, argv, "ImageStitcher", ros::init_options::AnonymousName);
+  ros::init(argc, argv, "stitch_images_gray", ros::init_options::AnonymousName);
   
   ros::NodeHandle nh_("~");
   
@@ -21,7 +21,7 @@ int main(int argc, char** argv){
       return 1;
   }
   ROS_INFO("Streaming -> /stitched_images/output\n");
-  ImageStitcher ic(left, right, 1, false);
+  ImageStitcherGray ic(left, right, 1, false);
   ros::spin();
   return 0;
 }

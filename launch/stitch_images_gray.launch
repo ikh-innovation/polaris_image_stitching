@@ -1,0 +1,13 @@
+<launch>
+  <!-- Node to run image stitching -->
+  <node name="image_stitcher" pkg="stitch_images" type="stitch_images_gray" output="screen">
+    
+    <!-- Remap topics if needed -->
+    <param name="left" value="/camera_left/image_raw" />
+    <param name="right" value="/camera_right/image_raw" />
+    
+    <!-- Image transport -->
+    <param name="image_transport" value="compressed" />
+    
+  </node>
+</launch>

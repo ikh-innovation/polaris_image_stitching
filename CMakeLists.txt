@@ -13,8 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   std_msgs
+  message_filters
 )
-
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -165,7 +165,12 @@ include_directories(
 #   scripts/my_python_script
 #   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 # )
-
+## Specify additional locations of header files
+## Your package locations should be listed before other locations
+include_directories(
+# include
+  ${catkin_INCLUDE_DIRS}
+)
 ## Mark executables and/or libraries for installation
 # install(TARGETS ${PROJECT_NAME} ${PROJECT_NAME}_node
 #   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
@@ -202,9 +207,22 @@ include_directories(
 
 find_package(OpenCV REQUIRED)
 
-add_executable(${PROJECT_NAME} src/stitch_images.cpp)
+add_executable(stitch_images src/stitch_images.cpp)
+add_executable(stitch_images_gray src/stitch_images_gray.cpp)
+
+
+target_link_libraries(stitch_images_gray
+  ${OpenCV_LIBS}
+  ${catkin_LIBRARIES}
+)
+
+install(TARGETS stitch_images_gray
+  RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
 
 target_link_libraries(${PROJECT_NAME}
   ${OpenCV_LIBS}
   ${catkin_LIBRARIES}
 )
+
+add_dependencies(stitch_images ${catkin_EXPORTED_TARGETS})

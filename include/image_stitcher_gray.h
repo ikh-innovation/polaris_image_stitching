@@ -15,7 +15,7 @@ typedef image_transport::SubscriberFilter ImageSubscriber;
 using namespace cv;
 using namespace std;
 
-class ImageStitcher {
+class ImageStitcherGray {
   ros::NodeHandle nh_;
   image_transport::ImageTransport it_;
   ImageSubscriber left_sub_, right_sub_;
@@ -25,19 +25,19 @@ class ImageStitcher {
   bool show_image_;
 
 public:
-  ImageStitcher(const string& left_topic, const string& right_topic, int buffer_size, bool show_image = false)
+  ImageStitcherGray(const string& left_topic, const string& right_topic, int buffer_size, bool show_image = false)
     : it_(nh_),
       left_sub_(it_, left_topic, buffer_size, image_transport::TransportHints("compressed")),
       right_sub_(it_, right_topic, buffer_size, image_transport::TransportHints("compressed")),
       sync_(ApproxSyncPolicy(buffer_size), left_sub_, right_sub_),
       show_image_(show_image)
   {
-    sync_.registerCallback(boost::bind(&ImageStitcher::callback, this, _1, _2));
+    sync_.registerCallback(boost::bind(&ImageStitcherGray::callback, this, _1, _2));
     image_pub_ = it_.advertise("/stitched_images/output", 1);
     if (show_image_) namedWindow(OPENCV_WINDOW);
   }
 
-  ~ImageStitcher() {
+  ~ImageStitcherGray() {
     if (show_image_) destroyWindow(OPENCV_WINDOW);
   }
 
@@ -113,7 +113,7 @@ public:
 
       Mat blended_f = left_f.mul(1.0 - alpha_3c) + right_f.mul(alpha_3c);
       Mat blended;
-      cv::threshold(blended_f, blended_f, 125.0, 125.0, THRESH_TRUNC);
+      cv::threshold(blended_f, blended_f, 255.0, 255.0, THRESH_TRUNC);
       cv::threshold(blended_f, blended_f, 0.0, 0.0, THRESH_TOZERO);
       blended_f.convertTo(blended, CV_8UC3);
       blended.copyTo(stitched(blend_roi));
@@ -147,11 +147,14 @@ public:
         waitKey(3);
       }
 
-      cv_bridge::CvImage out_msg;
-      out_msg.header = left_ptr->header;
-      out_msg.encoding = sensor_msgs::image_encodings::BGR8;
-      out_msg.image = cropped;
-      image_pub_.publish(out_msg.toImageMsg());
+    Mat gray_output;
+    cvtColor(cropped, gray_output, COLOR_BGR2GRAY);
+
+    cv_bridge::CvImage out_msg;
+    out_msg.header = left_ptr->header;
+    out_msg.encoding = sensor_msgs::image_encodings::MONO8;
+    out_msg.image = gray_output;
+    image_pub_.publish(out_msg.toImageMsg());
 
     } catch (cv_bridge::Exception& e) {
       ROS_ERROR("cv_bridge exception: %s", e.what());
