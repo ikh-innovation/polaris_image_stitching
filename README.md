@@ -1,5 +1,5 @@
 # ROS Node for Image Stitching
-ROS Node for Realtime Image Stitching for imags obtained from two different unsynnchronized/synnchronized cameras.
+ROS Node for Realtime Image Stitching for images obtained from two different unsynnchronized/synnchronized cameras.
 
 ## Usage
 ### Running the node
