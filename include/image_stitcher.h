@@ -114,7 +114,7 @@ public:
       Mat blended_f = left_f.mul(1.0 - alpha_3c) + right_f.mul(alpha_3c);
       Mat blended;
       cv::threshold(blended_f, blended_f, 125.0, 125.0, THRESH_TRUNC);
-      cv::threshold(blended_f, blended_f, 0.0, 0.0, THRESH_TOZERO);
+      cv::threshold(blended_f, blended_f, 10.0, 10.0, THRESH_TOZERO);
       blended_f.convertTo(blended, CV_8UC3);
       blended.copyTo(stitched(blend_roi));
 

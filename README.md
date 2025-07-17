@@ -1,19 +1,19 @@
-# ROS Node for Image Stitching
-ROS Node for Realtime Image Stitching for images obtained from two different unsynnchronized/synnchronized cameras.
+# ROS Package for Image Stitching
+Realtime Image Stitching for images obtained from two different unsynnchronized cameras.
 
-## Usage
+# Usage
 
 ### Running the launch file:
 ```
 roslaunch stitch_images stitch_images.launch 
 ```
 
-### Running with Grayscale output:
+### Running the launch file with Grayscale output:
 ```
 roslaunch stitch_images stitch_images_gray.launch 
 ```
-### Running rqt to view stitched image on topic /stitched_images/output
 
+### Running rqt to view stitched image on topic /stitched_images/output
 ```
 rosrun rqt_image_view rqt_image_view
 ```
@@ -23,7 +23,7 @@ rosrun rqt_image_view rqt_image_view
 rosrun stitch_images stitch_images _left:=/camera_left/image_raw _right:=/camera_right/image_raw _image_transport_:=compressed
 ```
 
-## Methodology for Image Stitching
+# Methodology for Image Stitching
 1. Find BFM for both the streams
 2. Find matching keypoints using BFMatcher
 3. Compute Homography Trasformation

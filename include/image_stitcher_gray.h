@@ -75,85 +75,74 @@ public:
 
   void callback(const sensor_msgs::ImageConstPtr& left_msg, const sensor_msgs::ImageConstPtr& right_msg) {
     try {
-      auto left_ptr = cv_bridge::toCvCopy(left_msg, sensor_msgs::image_encodings::BGR8);
+    auto left_ptr = cv_bridge::toCvCopy(left_msg, sensor_msgs::image_encodings::BGR8);
       auto right_ptr = cv_bridge::toCvCopy(right_msg, sensor_msgs::image_encodings::BGR8);
 
-      Mat right_img = right_ptr->image;
-      copyMakeBorder(right_img, right_img, 0, 0, right_img.rows, 0, BORDER_CONSTANT, Scalar::all(0));
+    // Convert to grayscale early
+    Mat left_gray, right_gray;
+    cvtColor(left_ptr->image, left_gray, COLOR_BGR2GRAY);
+    cvtColor(right_ptr->image, right_gray, COLOR_BGR2GRAY);
 
-      if (homography_.empty()) calibrate(left_ptr->image, right_img);
-      if (homography_.empty()) return;
+    // Pad right image to allow warping result to fit
+    copyMakeBorder(right_gray, right_gray, 0, 0, right_gray.rows, 0, BORDER_CONSTANT, Scalar(0));
 
-      Mat warped_left;
-      warpPerspective(left_ptr->image, warped_left, homography_, right_img.size(), INTER_LINEAR, BORDER_TRANSPARENT);
+    // Calibrate if needed
+    if (homography_.empty()) calibrate(left_gray, right_gray);
+    if (homography_.empty()) return;
 
-      Mat stitched = right_img.clone();
+    // Warp left grayscale image
+    Mat warped_left;
+    warpPerspective(left_gray, warped_left, homography_, right_gray.size(), INTER_LINEAR, BORDER_CONSTANT, Scalar(0));
 
-      int blend_width = 100;
-      int blend_start = stitched.cols - blend_width - 200;
-      blend_start = std::max(0, blend_start);
+    // Prepare stitched canvas (copy right image)
+    Mat stitched = right_gray.clone();
 
-      Rect blend_roi(blend_start, 0, blend_width, stitched.rows);
-      Mat roi_left = warped_left(blend_roi);
-      Mat roi_right = stitched(blend_roi);
+    // Alpha blending
+    int blend_width = 100;
+    int blend_start = stitched.cols - blend_width - 200;
+    blend_start = std::max(0, blend_start);
+    Rect blend_roi(blend_start, 0, blend_width, stitched.rows);
 
-      // Create blend alpha mask
-      Mat alpha_mask(roi_left.size(), CV_32FC1);
-      for (int x = 0; x < alpha_mask.cols; ++x) {
-        float alpha = static_cast<float>(x) / alpha_mask.cols;
-        for (int y = 0; y < alpha_mask.rows; ++y)
-          alpha_mask.at<float>(y, x) = alpha;
-      }
+    Mat roi_left = warped_left(blend_roi);
+    Mat roi_right = stitched(blend_roi);
 
-      // Blend ROIs
-      Mat left_f, right_f, alpha_3c;
-      roi_left.convertTo(left_f, CV_32FC3);
-      roi_right.convertTo(right_f, CV_32FC3);
-      merge(vector<Mat>{alpha_mask, alpha_mask, alpha_mask}, alpha_3c);
+    Mat alpha_mask(roi_left.size(), CV_32FC1);
+    for (int x = 0; x < alpha_mask.cols; ++x) {
+      float alpha = static_cast<float>(x) / alpha_mask.cols;
+      for (int y = 0; y < alpha_mask.rows; ++y)
+        alpha_mask.at<float>(y, x) = alpha;
+    }
 
-      Mat blended_f = left_f.mul(1.0 - alpha_3c) + right_f.mul(alpha_3c);
-      Mat blended;
-      cv::threshold(blended_f, blended_f, 255.0, 255.0, THRESH_TRUNC);
-      cv::threshold(blended_f, blended_f, 0.0, 0.0, THRESH_TOZERO);
-      blended_f.convertTo(blended, CV_8UC3);
-      blended.copyTo(stitched(blend_roi));
+    Mat roi_left_f, roi_right_f, blended_f;
+    roi_left.convertTo(roi_left_f, CV_32FC1);
+    roi_right.convertTo(roi_right_f, CV_32FC1);
+    blended_f = roi_left_f.mul(1.0 - alpha_mask) + roi_right_f.mul(alpha_mask);
 
-      // Fill non-overlapping warped_left onto stitched image
-      Mat warped_channels[3];
-      split(warped_left, warped_channels);
+    Mat blended;
+    blended_f.convertTo(blended, CV_8UC1);
+    blended.copyTo(stitched(blend_roi));
 
-    // Fill non-overlapping part of left image (skip black/dark pixels)
+    // Fill non-overlapping parts from warped_left (skip black)
     for (int y = 0; y < stitched.rows; ++y) {
       for (int x = 0; x < blend_start; ++x) {
-        Vec3b val = warped_left.at<Vec3b>(y, x);
-        if (val[0] > 10 || val[1] > 10 || val[2] > 10) {
-          stitched.at<Vec3b>(y, x) = val;
+        uchar val = warped_left.at<uchar>(y, x);
+        if (val > 10) {
+          stitched.at<uchar>(y, x) = val;
         }
       }
     }
 
-      // Crop left camera left side black 
-      int crop_offset = 250;
-      int final_width = stitched.cols - crop_offset;
-      if (final_width <= 0) {
-        ROS_WARN("Crop width invalid.");
-        return;
-      }
+    // Optional crop
+    int crop_offset = 250;
+    int final_width = stitched.cols - crop_offset;
+    if (final_width <= 0) return;
+    Mat cropped = stitched(Rect(crop_offset, 0, final_width, stitched.rows));
 
-      Mat cropped = stitched(Rect(crop_offset, 0, final_width, stitched.rows));
-
-      if (show_image_) {
-        imshow(OPENCV_WINDOW, cropped);
-        waitKey(3);
-      }
-
-    Mat gray_output;
-    cvtColor(cropped, gray_output, COLOR_BGR2GRAY);
-
+    // Publish
     cv_bridge::CvImage out_msg;
     out_msg.header = left_ptr->header;
     out_msg.encoding = sensor_msgs::image_encodings::MONO8;
-    out_msg.image = gray_output;
+    out_msg.image = cropped;
     image_pub_.publish(out_msg.toImageMsg());
 
     } catch (cv_bridge::Exception& e) {
