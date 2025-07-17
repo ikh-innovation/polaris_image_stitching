@@ -33,7 +33,7 @@ public:
       show_image_(show_image)
   {
     sync_.registerCallback(boost::bind(&ImageStitcher::callback, this, _1, _2));
-    image_pub_ = it_.advertise("/stitched_images/output", 1);
+    image_pub_ = it_.advertise("/robot/front_stitched/image_raw", 1);
     if (show_image_) namedWindow(OPENCV_WINDOW);
   }
 
