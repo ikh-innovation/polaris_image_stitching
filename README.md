@@ -18,15 +18,12 @@ roslaunch stitch_images stitch_images_gray.launch
 rosrun rqt_image_view rqt_image_view
 ```
 
-#### Running the node using rosrun:
-```
-rosrun stitch_images stitch_images _left:=/camera_left/image_raw _right:=/camera_right/image_raw _image_transport_:=compressed
-```
-
 # Methodology for Image Stitching
 1. Find BFM for both the streams
 2. Find matching keypoints using BFMatcher
 3. Compute Homography Trasformation
 4. Use the computed homography to stitch the images
+5. Make left camera's image more transparent in the corners for better stitching with right camera
+6. Use masking to blend the left and right image
 
-_The steps 1-3 are only performed for the first frames. Once the homography matrix has been calculated, we only use the calculated homography to stich the images together. For best result, rectified undistorted images should be used._
+_The steps 1-3 are only performed for the first frames. Once the homography matrix has been calculated, we only use the calculated homography to stich the images together._

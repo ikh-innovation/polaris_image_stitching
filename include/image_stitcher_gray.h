@@ -33,7 +33,7 @@ public:
       show_image_(show_image)
   {
     sync_.registerCallback(boost::bind(&ImageStitcherGray::callback, this, _1, _2));
-    image_pub_ = it_.advertise("/stitched_images/output", 1);
+    image_pub_ = it_.advertise("/robot/front_stitched/image_raw", 1);
     if (show_image_) namedWindow(OPENCV_WINDOW);
   }
 
@@ -133,7 +133,7 @@ public:
     }
 
     // Optional crop
-    int crop_offset = 250;
+    int crop_offset = 270;
     int final_width = stitched.cols - crop_offset;
     if (final_width <= 0) return;
     Mat cropped = stitched(Rect(crop_offset, 0, final_width, stitched.rows));
