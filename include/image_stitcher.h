@@ -59,7 +59,7 @@ public:
         good_matches.push_back(match[0]);
     }
 
-    if (good_matches.size() < 25) {
+    if (good_matches.size() < 35) {
       ROS_WARN("Insufficient good matches for homography.");
       return;
     }
@@ -69,7 +69,6 @@ public:
       pts_left.push_back(kpts_left[m.queryIdx].pt);
       pts_right.push_back(kpts_right[m.trainIdx].pt);
     }
-
     homography_ = findHomography(pts_left, pts_right, RANSAC);
   }
 
@@ -97,10 +96,22 @@ public:
       Mat roi_left = warped_left(blend_roi);
       Mat roi_right = stitched(blend_roi);
 
+      // Equalize histograms on scale brightness between left/right images
+      Scalar left_mean = mean(roi_left);
+      Scalar right_mean = mean(roi_right);
+
+      Mat roi_left_balanced = roi_left.clone();
+      for (int c = 0; c < 3; ++c) {
+        float gain = right_mean[c] / std::max(left_mean[c], 1.0);
+        roi_left_balanced.forEach<Vec3b>([c, gain](Vec3b &pixel, const int* pos) {
+          pixel[c] = saturate_cast<uchar>(pixel[c] * gain);
+        });
+      }
+
       // Create blend alpha mask
       Mat alpha_mask(roi_left.size(), CV_32FC1);
       for (int x = 0; x < alpha_mask.cols; ++x) {
-        float alpha = static_cast<float>(x) / alpha_mask.cols;
+        float alpha = (1.0f - static_cast<float>(x) / static_cast<float>(alpha_mask.cols - 1));
         for (int y = 0; y < alpha_mask.rows; ++y)
           alpha_mask.at<float>(y, x) = alpha;
       }
@@ -109,11 +120,12 @@ public:
       Mat left_f, right_f, alpha_3c;
       roi_left.convertTo(left_f, CV_32FC3);
       roi_right.convertTo(right_f, CV_32FC3);
+      
       merge(vector<Mat>{alpha_mask, alpha_mask, alpha_mask}, alpha_3c);
 
       Mat blended_f = left_f.mul(1.0 - alpha_3c) + right_f.mul(alpha_3c);
       Mat blended;
-      cv::threshold(blended_f, blended_f, 125.0, 125.0, THRESH_TRUNC);
+      cv::threshold(blended_f, blended_f, 70.0, 70.0, THRESH_TRUNC);
       cv::threshold(blended_f, blended_f, 10.0, 10.0, THRESH_TOZERO);
       blended_f.convertTo(blended, CV_8UC3);
       blended.copyTo(stitched(blend_roi));
@@ -153,7 +165,8 @@ public:
       out_msg.image = cropped;
       image_pub_.publish(out_msg.toImageMsg());
 
-    } catch (cv_bridge::Exception& e) {
+    } 
+    catch (cv_bridge::Exception& e) {
       ROS_ERROR("cv_bridge exception: %s", e.what());
     }
   }
